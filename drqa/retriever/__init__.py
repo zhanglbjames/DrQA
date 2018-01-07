@@ -8,6 +8,7 @@
 import os
 from .. import DATA_DIR
 
+# set default arguments
 DEFAULTS = {
     'db_path': os.path.join(DATA_DIR, 'wikipedia/docs.db'),
     'tfidf_path': os.path.join(
@@ -16,7 +17,8 @@ DEFAULTS = {
     ),
 }
 
-
+# follow functions can be invoke as:
+# retriever.setdefault(k,v)
 def set_default(key, value):
     global DEFAULTS
     DEFAULTS[key] = value
@@ -29,6 +31,12 @@ def get_class(name):
         return DocDB
     raise RuntimeError('Invalid retriever class: %s' % name)
 
+# __info__.py helps
+# refer links: http://blog.csdn.net/djangor/article/details/39673659
+#              http://www.cnpythoner.com/post/2.html
 
+# simplify package import
 from .doc_db import DocDB
 from .tfidf_doc_ranker import TfidfDocRanker
+# suit to py2.7
+from .utils import *

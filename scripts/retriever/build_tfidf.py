@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# coding:utf-8
 # Copyright 2017-present, Facebook, Inc.
 # All rights reserved.
 #
@@ -21,13 +21,27 @@ from collections import Counter
 from drqa import retriever
 from drqa import tokenizers
 
+
+# ----------------------------------------------------------------------
+# TD-IDF refer links:
+# http://www.ruanyifeng.com/blog/2013/03/tf-idf.html
+#
+# N-gram refer links:
+# http://blog.csdn.net/baimafujinji/article/details/51281816
+# https://www.cnblogs.com/zhangkaikai/p/6669750.html
+# https://www.ibm.com/developerworks/cn/opensource/os-cn-pythonwith/
+#
+# with expression
+# http://blog.csdn.net/suwei19870312/article/details/23258495/
+# ----------------------------------------------------------------------
+
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 fmt = logging.Formatter('%(asctime)s: [ %(message)s ]', '%m/%d/%Y %I:%M:%S %p')
 console = logging.StreamHandler()
 console.setFormatter(fmt)
 logger.addHandler(console)
-
 
 # ------------------------------------------------------------------------------
 # Multiprocessing functions
@@ -65,7 +79,7 @@ def count(ngram, hash_size, doc_id):
     """Fetch the text of a document and compute hashed ngrams counts."""
     global DOC2IDX
     row, col, data = [], [], []
-    # Tokenize
+    # Tokenize: get tokens of text with specify doc_id
     tokens = tokenize(retriever.utils.normalize(fetch_text(doc_id)))
 
     # Get ngrams from tokens, with stopword/punctuation filtering.
@@ -74,6 +88,12 @@ def count(ngram, hash_size, doc_id):
     )
 
     # Hash ngrams and count occurences
+    ''' Counter函数示例
+        example:
+        a = ['a', 'b', 'a']
+        counts = Counter(a)
+        counts == Counter({'a': 2, 'b': 1})
+    '''
     counts = Counter([retriever.utils.hash(gram, hash_size) for gram in ngrams])
 
     # Return in sparse matrix data format.
@@ -90,10 +110,18 @@ def get_count_matrix(args, db, db_opts):
     """
     # Map doc_ids to indexes
     global DOC2IDX
-    db_class = retriever.get_class(db)
-    with db_class(**db_opts) as doc_db:
-        doc_ids = doc_db.get_doc_ids()
-    DOC2IDX = {doc_id: i for i, doc_id in enumerate(doc_ids)}
+    db_class = retriever.get_class(db)  # get specify db class instance to get documents
+    with db_class(**db_opts) as doc_db:  # context management
+        doc_ids = doc_db.get_doc_ids()  # get all doc ids
+
+    '''
+        enumerate(list) wrap a list to dic as follow:
+        list=['a','b','c']
+        enumerate(list)=dict{0: 'a', 1: 'b', 2: 'c'}
+        
+        so iterate enumerate(list) return two values:index(start from 0) and value of origin list
+    '''
+    DOC2IDX = {doc_id: i for i, doc_id in enumerate(doc_ids)}  # get doc to index maps from doc_ids
 
     # Setup worker pool
     tok_class = tokenizers.get_class(args.tokenizer)
@@ -106,23 +134,41 @@ def get_count_matrix(args, db, db_opts):
     # Compute the count matrix in steps (to keep in memory)
     logger.info('Mapping...')
     row, col, data = [], [], []
-    step = max(int(len(doc_ids) / 10), 1)
-    batches = [doc_ids[i:i + step] for i in range(0, len(doc_ids), step)]
+    step = max(int(len(doc_ids) / 10), 1)  # get count of steps
+    batches = [doc_ids[i:i + step] for i in range(0, len(doc_ids), step)]  # calc the batch range of each step
+
+    # redefine function signature. use some defaults args to wrap a function object and return
+    # a callable object.
+    # refer link:http://www.wklken.me/posts/2013/08/18/python-extra-functools.html
     _count = partial(count, args.ngram, args.hash_size)
+
     for i, batch in enumerate(batches):
         logger.info('-' * 25 + 'Batch %d/%d' % (i + 1, len(batches)) + '-' * 25)
         for b_row, b_col, b_data in workers.imap_unordered(_count, batch):
-            row.extend(b_row)
-            col.extend(b_col)
-            data.extend(b_data)
+            # three lists extend when each step
+            row.extend(b_row)  # list[.../step..../step...] hash(n-gram(token from doc))
+            col.extend(b_col)  # list[.../step..../step...] index of doc
+            data.extend(b_data)  # list[.../step..../step...] value of count of n-gram(token from doc)
     workers.close()
     workers.join()
 
     logger.info('Creating sparse matrix...')
+
+    '''生成的稀疏矩阵示例
+       hash(N-gram) --------------(col)
+       index of doc | element=count(hash) 
+                    |
+                    |
+                    |
+                    (row)
+    '''
     count_matrix = sp.csr_matrix(
         (data, (row, col)), shape=(args.hash_size, len(doc_ids))
     )
+
+    # 将矩阵中实体元素相同的进行相加合并
     count_matrix.sum_duplicates()
+    # 输出矩阵，以及其他
     return count_matrix, (DOC2IDX, doc_ids)
 
 
@@ -135,9 +181,9 @@ def get_tfidf_matrix(cnts):
     """Convert the word count matrix into tfidf one.
 
     tfidf = log(tf + 1) * log((N - Nt + 0.5) / (Nt + 0.5))
-    * tf = term frequency in document
-    * N = number of documents
-    * Nt = number of occurences of term in all documents
+    * tf = term frequency in document 某一文档中词的频率
+    * N = number of documents 文档的数量
+    * Nt = number of occurences of term in all documents 词在所有文档中出现的次数
     """
     Ns = get_doc_freqs(cnts)
     idfs = np.log((cnts.shape[1] - Ns + 0.5) / (Ns + 0.5))
@@ -150,7 +196,9 @@ def get_tfidf_matrix(cnts):
 
 def get_doc_freqs(cnts):
     """Return word --> # of docs it appears in."""
+    # 二值（0,1）矩阵，注意(cnts > 0)是一个逻辑判断表达式
     binary = (cnts > 0).astype(int)
+    # sum(1) 矩阵的行向量相加，指定求和方向
     freqs = np.array(binary.sum(1)).squeeze()
     return freqs
 

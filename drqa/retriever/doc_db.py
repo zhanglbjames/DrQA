@@ -21,6 +21,7 @@ class DocDB(object):
         self.path = db_path or DEFAULTS['db_path']
         self.connection = sqlite3.connect(self.path, check_same_thread=False)
 
+    # context manager operates
     def __enter__(self):
         return self
 

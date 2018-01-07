@@ -80,7 +80,7 @@ def normalize(text):
 def filter_word(text):
     """Take out english stopwords, punctuation, and compound endings."""
     text = normalize(text)
-    if regex.match(r'^\p{P}+$', text):
+    if regex.match(r'^\p{P}+$', text):  # just for filtering punctuation regex grammar
         return True
     if text.lower() in STOPWORDS:
         return True

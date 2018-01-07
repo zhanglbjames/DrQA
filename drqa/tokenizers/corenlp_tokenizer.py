@@ -58,7 +58,7 @@ class CoreNLPTokenizer(Tokenizer):
         self.corenlp.sendline(' '.join(cmd))
         self.corenlp.delaybeforesend = 0
         self.corenlp.delayafterread = 0
-        self.corenlp.expect_exact('NLP>', searchwindowsize=100)
+        self.corenlp.expect_exact('NLP>', searchwindowsize=100)  # match exact plain string you expect
 
     @staticmethod
     def _convert(token):
@@ -92,15 +92,18 @@ class CoreNLPTokenizer(Tokenizer):
         # Minor cleanup before tokenizing.
         clean_text = text.replace('\n', ' ')
 
+        # input text
         self.corenlp.sendline(clean_text.encode('utf-8'))
         self.corenlp.expect_exact('NLP>', searchwindowsize=100)
 
         # Skip to start of output (may have been stderr logging messages)
-        output = self.corenlp.before
+        output = self.corenlp.before  # get output
         start = output.find(b'{"sentences":')
         output = json.loads(output[start:].decode('utf-8'))
 
         data = []
+
+        # chain for in: from left to right: tokens=list[[]]
         tokens = [t for s in output['sentences'] for t in s['tokens']]
         for i in range(len(tokens)):
             # Get whitespace
