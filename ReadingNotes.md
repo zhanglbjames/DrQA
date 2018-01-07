@@ -47,6 +47,7 @@
 
 13. 多维数组的例子 
 > https://docs.scipy.org/doc/numpy/reference/generated/numpy.squeeze.html#numpy.squeeze
-> np.array([[[0], [1], [2]]]) 从里往外看维度的长度为(1,3,1)，即三维，每一维的长度为1,3,1
-> ---------|||
+
+> np.array([[[0], [1], [2]]]) 从里往外看维度的长度为(1,3,1)，即三维，每一维的长度为1,3,1</br>
+> ---------|||</br>
 > ---------131
