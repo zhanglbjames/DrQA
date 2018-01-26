@@ -31,12 +31,10 @@ def get_class(name):
         return DocDB
     raise RuntimeError('Invalid retriever class: %s' % name)
 
-# __info__.py helps
+# __init__.py helps
 # refer links: http://blog.csdn.net/djangor/article/details/39673659
 #              http://www.cnpythoner.com/post/2.html
 
 # simplify package import
 from .doc_db import DocDB
 from .tfidf_doc_ranker import TfidfDocRanker
-# suit to py2.7
-from .utils import *

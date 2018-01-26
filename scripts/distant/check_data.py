@@ -28,4 +28,5 @@ with open(args.file) as f:
         print('Question: %s' % question)
         print('')
         print('Document: %s' % (' '.join([pre, ans, post])))
+
         input()
